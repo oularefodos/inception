@@ -1,0 +1,137 @@
+version: '3'
+
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: requirements/nginx/Dockerfile
+    container_name: nginx
+    image: nginx
+    depends_on:
+      - wordpress
+    ports:
+      - "443:443"
+    networks:
+      - inception
+    volumes:
+      - ./requirements/nginx/conf/:/etc/nginx/http.d/
+      - ./requirements/nginx/tools:/etc/nginx/ssl/
+      - wp-volume:/var/www/
+    restart: always
+
+  mariadb:
+    build:
+      context: .
+      dockerfile: requirements/mariadb/Dockerfile
+    env_file: .env
+    container_name: mariadb
+    image: mariadb
+    ports:
+      - "3306:3306"
+    networks:
+      - inception
+    volumes:
+      - db-volume:/var/lib/mysql/
+    restart: always
+
+  wordpress:
+    build:
+      context: .
+      dockerfile: requirements/wordpress/Dockerfile
+    env_file: .env
+    container_name: wordpress
+    image: wordpress
+    depends_on:
+      - mariadb
+    networks:
+      - inception
+    volumes:
+      - wp-volume:/var/www/
+    restart: always
+
+  redis:
+    build:
+      context: .
+      dockerfile: requirements/bonus/redis/Dockerfile
+    container_name: redis
+    image: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - inception
+    depends_on:
+      - wordpress
+    volumes:
+      - wp-volume:/var/www/
+    restart: always
+
+  ftp:
+    build:
+      context: .
+      dockerfile: requirements/bonus/ftp/Dockerfile
+    env_file: .env
+    container_name: ftp
+    image: ftp
+    ports:
+      - "21:21"
+    networks:
+      - inception
+    volumes:
+      - wp-volume:/var/www/
+    restart: always
+
+  adminer:
+    build:
+      context: .
+      dockerfile: requirements/bonus/adminer/Dockerfile
+    container_name: adminer
+    image: adminer
+    depends_on:
+      - mariadb
+    ports:
+      - "8080:8080"
+    networks:
+     - inception
+    restart: always
+
+  mysiteweb:
+    build:
+      context: .
+      dockerfile: requirements/bonus/mysiteweb/Dockerfile
+    container_name: mysiteweb
+    image: mysiteweb
+    ports:
+      - "80:80"
+    networks:
+      - inception
+    restart: always
+
+  portainer:
+    build:
+      context: .
+      dockerfile: requirements/bonus/portainer/Dockerfile
+    container_name: portainer
+    image: portainer
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/${USER}/data/portainer:/data
+    restart: always
+
+volumes:
+  wp-volume:
+    driver_opts:
+      o: bind
+      type: none
+      device: /home/${USER}/data/wordpress
+  db-volume:
+    driver_opts:
+      o: bind
+      type: none
+      device: /home/${USER}/data/mariadb
+
+networks:
+  inception:
+    driver: bridge
+
